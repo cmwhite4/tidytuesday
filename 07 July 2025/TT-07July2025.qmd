@@ -1,0 +1,145 @@
+---
+title: "TT-04July2025"
+format: html
+editor: visual
+---
+
+## Setup
+
+```{r, message = F}
+### Libraries ------
+library(tidytuesdayR) # tt_load
+library(tidyverse) # tidy
+library(RColorBrewer) # palette
+library(ggtext) # element_markdown
+library(cowplot) # plot_grid
+
+### Load data ------
+tt_dat0 <- tidytuesdayR::tt_load('2025-07-01')
+tt_dat1 <- tt_dat0$weekly_gas_prices
+```
+
+## Plot
+
+### Panel 1: Yearly Mean
+
+```{r}
+### Set up data for plot ------
+plot_dat <- tt_dat1 |> filter(fuel=="gasoline" & grade=="regular" &
+                               formulation=="conventional") |>
+  mutate(year = substr(date, 1, 4), # Get year and month from date
+         month = substr(date, 6, 7),
+         month_abb = month.abb[as.numeric(month)])
+
+
+panel1_dat <- plot_dat |>
+  group_by(year) |> summarise(m_price = mean(price), # Year summary
+                              min_price = min(price), max_price = max(price),
+                              range_price = max_price-min_price) |>
+   mutate(col_fill = case_when(year==2008 ~ 1,
+                               year==1993 ~ 2,
+                               .default = 0)) # Specific column fill
+
+### Set up x axis labels with specific bolding ------
+year_seq <- c(1990:2025)
+year_lab <- c(year_seq[1:3], "**1993**", 
+              year_seq[5:18], "**2008**", year_seq[20:36])
+
+### Create plot ------
+panel1 <- panel1_dat |> ggplot() + 
+  geom_hline(yintercept=1) + # black line for visibility
+  geom_hline(yintercept=2, color = "grey20") +
+  geom_hline(yintercept=3, color = "grey20") +
+  geom_col(aes(x=factor(year), y=m_price, fill = factor(col_fill))) +
+  theme(axis.text.x = element_markdown(angle = 60, vjust = 1.5, hjust = 1.5),
+        axis.text.y = element_text(size = 14),
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 1),
+        plot.margin = unit(c(.5, 1, 1, 0), "cm"),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = "white")) + 
+  scale_fill_brewer(palette = "Set2") + # Color scheme
+  scale_y_continuous(limits = c(0,4),
+                     breaks = c(0, 1, 2, 3, 4),
+                     labels = c("", " $1.00", " $2.00", 
+                     " $3.00", "Yearly\nMean\n")) + 
+  scale_x_discrete(labels = year_lab) + 
+  labs(title = "<span style='color:#000000;font-size:20pt'>\n \nRegular gasoline prices: <span style='color:#FC8D62;'>**biggest**</span><span style='color:#000000'> vs.</span><span style='color:#8DA0CB;'>**smallest**</span><span style='color:#000000'> range within a year\n \n </span>")
+```
+
+### Panel 2A: 1993 Plot
+
+```{r}
+### Set up data for plot ------
+panel2a_dat <- plot_dat |> filter(year=="1993") |> # Subset to target year
+  mutate(month_lab = case_when(lag(month_abb)!=month_abb ~ month_abb,
+                               date=="1993-01-04" ~ month_abb,
+                               .default = "")) # Custom labels
+
+### Create plot ------
+panel2a <- panel2a_dat |> ggplot() + 
+  geom_hline(yintercept=1) + # black line for visibility
+  geom_hline(yintercept=2, color = "grey20") +
+  geom_hline(yintercept=3, color = "grey20") +
+  geom_hline(yintercept=4, color = "grey20") +
+  geom_col(aes(x=factor(date), y = round(price, 2)), fill = "#8DA0CB") + 
+  theme(axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(hjust = 0.1),
+        axis.text.y = element_text(size = 14),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 1),
+        plot.margin = unit(c(0, 1, 1, 0), "cm"),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = "white")) + 
+  scale_x_discrete(labels = panel2a_dat$month_lab) + # Custom labels
+  scale_y_continuous(limits = c(0, 4.5), breaks = c(0:4),
+                     labels = c("", " $1.00", " $2.00", " $3.00", " $4.00"))
+```
+
+### Panel 2B: 2008 Plot
+
+```{r}
+### Set up data for plot ------
+panel2b_dat <- plot_dat |> filter(year=="2008") |> # Subset to target year
+  mutate(month_lab = case_when(lag(month_abb)!=month_abb ~ month_abb,
+                               date=="2008-01-07" ~ month_abb,
+                               .default = "")) # Custom labels
+
+### Create plot ------
+panel2b <- panel2b_dat |> ggplot() + 
+  geom_hline(yintercept=1) + # black line for visibility
+  geom_hline(yintercept=2, color = "grey20") +
+  geom_hline(yintercept=3, color = "grey20") +
+  geom_hline(yintercept=4, color = "grey20") +
+  geom_col(aes(x=factor(date), y = round(price, 2)), fill = "#FC8D62") + 
+  theme(axis.ticks = element_blank(),
+        axis.text.x = element_text(hjust = 0.1),
+        axis.text.y = element_text(size = 14),
+        axis.title = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 1),
+        plot.margin = unit(c(0, 1, 1, 0), "cm"),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = "white")) + 
+  scale_x_discrete(labels = panel2b_dat$month_lab) + 
+  scale_y_continuous(limits = c(0, 4.5), breaks = c(0:4),
+                     labels = c("", " $1.00", " $2.00", " $3.00", " $4.00"))
+```
+
+### Combine and Save
+
+```{r}
+### Combine panel 2a + 2b horizontally ------
+panel2 <- plot_grid(panel2a, panel2b, nrow = 1)
+
+### Combine panels 1 and 2 vertically ------
+final_plot <- plot_grid(panel1, panel2, nrow = 2)
+
+### Display and export ------
+print(final_plot)
+ggsave("TTPlot-07Jun2025.pdf", plot = final_plot,
+       height = 6, width = 10, unit = "in")
+```
