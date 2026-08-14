@@ -1,0 +1,73 @@
+---
+title: "tidy-tuesday"
+format: html
+editor: visual
+---
+
+# Tidy Tuesday
+
+## Penguin Data
+
+```{r, message = F}
+### Import data set
+many_penguins <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-07-14/many_penguins.csv')
+
+# Load library
+library(tidyverse)
+```
+
+```{r, warning = FALSE, message = F}
+
+### Wrangle data for iceberg 
+dat0 <- many_penguins
+
+dat1 <- dat0 |>
+  # Subset to relevant vars
+  dplyr::select(shortname, contains("length")) |> 
+  # Pivot to long format for fill
+  pivot_longer(-shortname, names_to = "feature", values_to = "length") |>
+  ### Keep complete cases
+  drop_na() |>
+  ### Filter out cases that distort the visual 
+  filter(length < 41 & length > 10) |>
+  ### Drop irrelevant var
+  select(-feature)
+
+### Create data for penguin 
+temp_dat <- data.frame(shortname =
+                        c("T", "W", "T", "T", "T", # first column
+                          "X", "Y", "U", "U", "U", # second column
+                          "W", "V", "V", "V", "T"), # third column
+                      length = c(rep(6, 5), # first column
+                                 7, 7, NA, 7, 7, # second column
+                                 rep(8, 5))) # third column
+
+last_row <- data.frame(shortname = "Y", length = 7)
+
+### Combine real and fake penguin data
+dat2 <- bind_rows(dat1, temp_dat, last_row) 
+
+dat3 <- dat2 |>
+  ### Remove cells that create a weird spike in iceberg 
+  filter(!(grepl("E.", shortname) & round(length, 0)==36))
+
+#### Set up colors for fill - gradient for real penguin data, specific colors for fake penguin data
+fill_list <- c(scales::seq_gradient_pal(
+  "white", "#a3b9f7", "Lab")(seq(0, 1, length.out = 16)),
+        "#000000", "#000000", "#000000",
+        "orange", "#f5d89f", "white")
+
+### Make the plot!
+dat3 |>
+  ggplot() +
+  geom_histogram(aes(x = length, fill = shortname)) + 
+  theme(legend.position = "none", # remove legend
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        panel.background = element_blank(),
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "#497fe3")) + 
+  scale_fill_manual(values = fill_list) +
+  scale_y_continuous(limits = c(0, 25))
+```
