@@ -1,0 +1,103 @@
+---
+title: "Tidy Tuesday August 18 2026"
+format: html
+editor: visual
+---
+
+# Tidy Tuesday
+
+## IELTS Data
+
+- Link to Tidy Tuesday: <https://github.com/rfordatascience/tidytuesday/blob/main/data/2026/2026-08-18/readme.md>
+
+- Original data source: <https://ielts.org/researchers/our-research/test-statistics>
+
+- Additional resource used: <https://www.r-bloggers.com/2024/06/race-charts-in-r-how-to-visualize-and-compare-change-over-time-with-gganimate/>
+
+```{r, message = F}
+demo_by_reasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-08-18/demo_by_reasons.csv')
+```
+
+## Libraries
+
+```{r, message = F, warning = F}
+library(tidyverse)
+library(ggtext)
+library(gganimate)
+library(gifski)
+library(extrafont)
+```
+
+## Data Viz
+
+```{r}
+### Wrangle Data 
+### Want to look at percent falling into band 7+ for each reason / year in Academic training context
+
+chart_data <- demo_by_reasons |>
+  filter(band >= 7 & type=="Academic") |>
+  summarize(.by = c(reason, year),
+            total_pct = sum(percent)) |> # Total percent for group
+  ### Color categories for plot - rough grouping
+  mutate(Category = case_when(
+           grepl("registration", reason) ~ "Professional Registration",
+           grepl("education", reason) ~ "Educational Reasons",
+           .default = "Other Reasons"
+         ),
+         reason = paste0(reason, "  ")) |>
+  arrange(year, desc(total_pct)) |>
+  mutate(Rank = rep(1:11, 3)) |> # for bar position
+  select(reason, total_pct, Category, year, Rank)
+
+### Colors for each category
+chart_colors <- c(
+  `Professional Registration` = "#E66F25",
+  `Educational Reasons` = "#FFC233",
+  `Other Reasons` = "#62D9B5"
+)
+
+### Static version of plot
+static <- chart_data |>
+  ggplot(aes(x = Rank, group = Category, fill = as.factor(Category))) +
+  geom_tile(aes(y = total_pct/2, height = total_pct, width = 0.8),
+            alpha = 0.8, color = NA) +
+  geom_text(aes(y = 0, label = reason, color = Category),
+            vjust = 0.25, hjust = 1, size = 25, family = "DIN Condensed") +
+  coord_flip(clip = "off", expand = FALSE) +
+  scale_x_reverse() +
+  scale_fill_manual(values = chart_colors) +
+  scale_color_manual(values = chart_colors) +
+  scale_y_continuous(limits = c(-.6, 1.1),
+                     breaks = c(0, .5, 1),
+                     labels = c("\n ", "\n50%", "\n100%")) +
+  theme(
+    axis.text.y = element_blank(),
+    axis.text.x = element_text(size = 100, color = "white",
+                               family = "DIN Condensed"),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks = element_blank(),
+    legend.position = "none",
+    panel.background = element_rect(fill = "grey30", color = "grey30"),
+    panel.grid = element_blank(),
+    plot.background = element_rect(fill = "grey30", color = "grey30"),
+    plot.margin = margin(2, 0, 2, 2, unit = "cm"),
+    plot.title = element_text(size = 120, color = "white",
+                              family = "DIN Condensed", hjust = .25)
+  )
+
+### Animated version of plot
+anim <- static + transition_states(year,
+                                   transition_length = .5,
+                                   state_length = 1) +
+  labs(title = "IELTS by reason: Percent of group scoring at band 7 or above in year {closest_state}\n")
+```
+
+```{r, eval = F}
+### Animate/Export plot as a GIF
+animate(anim,
+        nframes = 36,
+        width = 4400,
+        height = 1500,
+        renderer = gifski_renderer("tidy-ielts-chart.gif"))
+```
